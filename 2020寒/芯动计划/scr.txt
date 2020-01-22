@@ -1,0 +1,368 @@
+﻿
+/******************************************************************************/
+/*----------------------------------引用---------------------------------------*/
+/******************************************************************************/
+#include "UserSource.h"
+#include "ServeSource.h"
+int timecounter10=0;
+
+/******************************************************************************/
+/*---------------------------------用户变量定义-----------------------------------*/
+/******************************************************************************/
+uint8 ctldata=0;
+int CodePerid;
+float distance;
+int key;//电磁循迹模式/蓝牙遥控模式状态切换
+int counter=0;//时间计数器
+int Hz;//编码器频率
+int myduty;//速度
+int choose_way=0;//入库、出库模式状态
+int island=0;//环岛模式
+int m = 0, n = 0;//弯道加速辅助
+int out=0;//启、停车与道路行驶模式切换
+int barrier = 0;
+int counter1 =0;
+/******************************************************************************/
+/*----------------------------------用户函数------------------------------------*/
+/******************************************************************************/
+//函数及函数用法
+void motor_duty(int duty)//用户自身舵机函数
+{
+	if (duty>0)
+		SetMotor(FORWARD, duty);
+	else
+		SetMotor(BACKWARD, -duty);
+}
+void steer_angle(int duty)
+{
+	if (duty>0)
+		SetSteer(LEFT, duty);
+	else if(duty<0)
+		SetSteer(RIGHT, -duty);
+	else
+		SetSteer(MIDDLE, duty);
+}
+
+/*****************************主函数***********************************/
+//CPU0主函数，置于循环中用户主要逻辑计算区
+void UserCpu0Main(void) //蓝牙遥控小车
+{
+	//出库；
+	if(out==0)out=1;//打开小车开关切换为出库状态
+	if(out==1){
+		key=0;
+		motor_duty(-70);
+		steer_angle(-14);//-14为小车直行时的舵机基准点
+		delay_ms(500);
+		steer_angle(130);
+		delay_ms(1000);//小车左转出库完成
+		key=1;//进入电磁循迹模式
+		out=2;//进入道路行驶模式
+	}
+	//蓝牙遥控小车
+	uint8 a=0;
+	int myangle=0;
+	motor_duty(myduty);
+	steer_angle(myangle);
+	while(TRUE)
+	{
+		a=Bluetooth_Read_Data();
+		if (a!=0)
+			ctldata=a;
+		switch (ctldata)
+		{
+		case 'S'://后退键，速度增幅为10
+			myduty-=10;
+			ctldata='s';
+			motor_duty(myduty);
+			steer_angle(myangle);
+			Bluetooth_Send_Data(ctldata);
+			key=0;//保持蓝牙遥控状态
+			break;
+		case 'W'://低速前进键
+			myduty=-50;
+			ctldata='w';
+			motor_duty(myduty);
+			steer_angle(myangle);
+			Bluetooth_Send_Data(ctldata);
+			key=0;//保持蓝牙遥控状态
+			counter = 0;//前进时开始计时
+			break;
+		case 'A'://左转（持续左满舵）
+			ctldata='a';
+			steer_angle(myangle);
+			steer_angle(130);//130为左满舵
+			motor_duty(-40);
+			Bluetooth_Send_Data(ctldata);
+			key=0;
+			break;
+		case 'D'://右转(持续右满舵）
+			ctldata='d';
+			steer_angle(myangle);
+			steer_angle(-158);//-158为右满舵
+			motor_duty(-40);
+			Bluetooth_Send_Data(ctldata);
+			key=0;
+			break;
+		case 'E'://停止
+			myangle=0;
+			myduty=0;
+			ctldata='e';
+			key=0;
+			motor_duty(myduty);
+			steer_angle(myangle);
+			Bluetooth_Send_Data(ctldata);
+			break;
+		case 'Z'://左转（微调）
+			ctldata='z';
+			steer_angle(120);
+			delay_ms(80);//通过delay函数控制转弯时间
+			Bluetooth_Send_Data(ctldata);
+			steer_angle(-14);
+			break;
+		case 'X'://高速启动键
+			ctldata='x';
+			steer_angle(-14);
+			motor_duty(-65);
+			Bluetooth_Send_Data(ctldata);
+			break;
+		case 'C'://右转（微调）
+			ctldata='c';
+			steer_angle(-140);
+			delay_ms(80);//通过delay函数控制转弯时间
+			Bluetooth_Send_Data(ctldata);
+			steer_angle(-14);
+			break;
+		case 'B'://新增B键切换到电磁循迹模式
+			ctldata='b';
+			Bluetooth_Send_Data(ctldata);
+			key=1;//切换到电磁循迹模式
+			break;
+		case  'P':
+			key=0;
+			counter1+=2;
+			motor_duty(-50);
+			steer_angle(-14);
+			delay_ms(1500);
+			key=0;             //脱离电磁循迹
+		//	if(counter==2){
+			motor_duty(0);
+			delay_ms(1000);    //刹车
+			motor_duty(-45);   //前进一段距离
+			delay_ms(500);
+			steer_angle(140);	//开始倒车入库，经过多次测量，找到容错性相对最好的参数
+			motor_duty(75);
+			delay_ms(2000);
+			motor_duty(65);
+			steer_angle(90);
+			delay_ms(1500);
+			motor_duty(0);
+			steer_angle(-14);   //车轮回正，电机停机
+			choose_way=0;
+			counter1=4;
+	//		}
+			break;
+		default:
+			break;
+		}
+
+	}
+}
+void UserCpu1Main(void)
+{
+	//2模式入库
+	/*		if(choose_way==2){
+					key=0;             //脱离电磁循迹
+					motor_duty(0);
+					delay_ms(1000);    //刹车
+					motor_duty(-45);   //前进一段距离
+					delay_ms(500);
+					steer_angle(140);	//开始倒车入库，经过多次测量，找到容错性相对最好的参数
+					motor_duty(75);
+					delay_ms(2000);
+					motor_duty(65);
+					steer_angle(90);
+					delay_ms(1500);
+					motor_duty(0);
+					steer_angle(-14);   //车轮回正，电机停机
+					choose_way=0;
+				}
+*/	//通过key来标识自动驾驶（电磁循迹模块）的停止与启用
+	// 电磁循迹模块
+	if(key==1){
+
+		/*		if(counter >= 10 && out == 2){//通过计时来控制在该转弯的地方转弯
+			key=0;
+			steer_angle(-158);
+			motor_duty(-60);
+			delay_ms(1500);
+			key=1;
+			out=3;
+		}
+		 */
+
+		//自适应控速模块
+		Hz = GetCodePerid();//获取当前车速（直接以Hz数值判断车速）
+		while(Hz<6000 && m < 100){      //利用m、n来防止死循环的出现
+			myduty -= 20;				//电机微加速系统
+			motor_duty(myduty);
+			m++;
+			Hz = GetCodePerid();
+		}
+		m=0;
+		while(Hz<4000 && n < 100){		//转弯时速度会急剧减小，为了防止抛锚停车
+			myduty -= 30;               //结合实际测量发现，此处进行急加速控制，转弯飞起，妈妈再也不用担心我会停车啦
+			motor_duty(myduty);
+			Hz = GetCodePerid();
+			n++;
+		}
+		n=0;
+		if(myduty>-30||myduty<-60){     //主控速模块，为了防止车太慢或太快冲出赛道
+			myduty=-50;                 //车速一但超出控制范围，重新初始化
+			motor_duty(myduty);
+		}
+		//电磁循迹主要实现函数
+		int id=3;
+		int i=0;
+		unsigned int tmpmax=VADCresult[3];
+		for(i=2;i<6;i++){
+			if(VADCresult[i]>=tmpmax){
+				id=i;
+				tmpmax=VADCresult[i];
+			}
+		}                               //利用电磁传感器2,3,4,5的数值分析，首先判断出车身在赛道的相对位置
+		int myangle=0;
+		steer_angle(myangle);
+		motor_duty(myduty);            //初始化方向和速度
+
+		switch(id){
+		case 2 :						//左转大弯
+			myangle=130;
+			steer_angle(myangle);
+			myduty=-40;
+			motor_duty(myduty);
+			break;
+		case 3 :                       //左转小弯
+			myangle=60;
+			steer_angle(myangle);
+			motor_duty(myduty);
+			break;
+		case 4 :						//右转小弯
+			myangle=-78;
+			steer_angle(myangle);
+			motor_duty(myduty);
+			break;
+		case 5 :                        //右转大弯
+			myangle=-158;
+			steer_angle(myangle);
+			myduty=-40;
+			motor_duty(myduty);
+			break;
+		default :
+			break;
+		}
+	}
+	//测试过程中的初始起步设置
+	/*  key+=2;
+	if(key==2){
+		motor_duty(-50);
+		steer_angle(-14);
+	}
+	 */
+
+	//进出环岛设置                           利用VADCresult[1]与VADCresult[6]的值突变到一个峰值判断小车相对环岛的位置
+/*	if(island==1){				//控制小车的方向，做出相应的操作
+		delay_ms(200);
+	}
+	if(island==2){
+		steer_angle(120);
+		delay_ms(100);
+	}
+	if(island==3){
+		steer_angle(-30);
+		delay_ms(150);
+	}
+
+	//1模式出库
+	if(choose_way==1){
+		steer_angle(130);
+		motor_duty(-50);
+		delay_ms(1000);
+		key=1;             //出库完成，切换至自动驾驶
+		choose_way = 0;    //choose_way归0
+	}
+*/
+	//图像循迹模块
+/*	imageRead();
+	delay_ms(100);
+	//如果未发现直接转弯标识，反复执行
+	if(barrier==0){
+		int i, count1 = 0, count2 = 0;
+		for(i = 0; i <= 120; i++){							//按列扫描pic[m][n]，如果发现有一列出现很多的蓝色像素点的值（50左右，设置40到60之间）
+			if(pic[i][40] >40 && pic[i][40] < 60){
+				count1++;
+			}
+			if(pic[i][120] > 40 && pic[i][120] < 60){
+				count2++;
+			}
+		}
+		if(count1 > 40){                //确定蓝色标识在左侧，开启左转
+			key=0;
+			motor_duty(-50);
+			steer_angle(-14);
+			delay_ms(800);
+			steer_angle(130);
+			delay_ms(1000);
+			key=1;
+			barrier=1;                 //设置暂时不再进行扫描，因为转过完后还有蓝色菱形标识
+		}
+		if(count2 >40){                //确定蓝色标识在右侧，开启右转
+			key=0;
+			motor_duty(-50);
+			steer_angle(-14);
+			delay_ms(800);
+			steer_angle(-158);
+			delay_ms(1000);
+			key=1;
+			barrier=1;                 //设置暂时不再进行扫描，因为转过完后还有蓝色菱形标识
+		}
+	}*/
+}
+	/**************************************中断调用函数****************************************/
+	//该函数每10ms执行一次，请在该函数中书写程序，中断时间有限，不要太长
+	uint32 UserInterupt10ms(void)
+	{
+		return 0;
+	}
+	//该函数每100ms执行一次，请在该函数中书写程序，中断时间有限，不要太长
+	//样例，获取编码器输出频率与超声举例
+	uint32 UserInterupt100ms(void)
+	{
+		distance=get_echo_length();
+		//	CodePerid=GetCodePerid();
+		if(VADCresult[1]>2800){
+			island++;			//左侧区域出现磁场，环岛模式状态+1；
+			/*进出环岛实现思路：将island的数值模3取余；
+			余数为1代表小车第一次来到环岛入口，继续前行
+			余数为2代表小车当前应选择进入环岛
+			余数为0代表小车第二次来到环岛入口，此时应选择不进入环岛*/
+		}
+		return 0;
+	}
+	uint32 UserInterupt1000ms(void)
+	{
+		counter++;//利用每1000ms执行一次的函数实现时间计数
+		return 0;
+	}
+	void UserInteruptIO(void)//触发干簧管
+	{
+		choose_way=0;//进入启、停车模式
+	//	if(counter < 3){//时间在三秒内则启动出库
+	//		IfxPort_togglePin(LED1);
+	//		choose_way=1;//切换到出库模式
+//		}
+		if(counter>35){//三十秒范围之外启动入库
+			choose_way=2;//切换到入库模式
+		}
+		key=0;//关闭电磁循迹模式
+	}
