@@ -1,0 +1,3 @@
+[submodule "Principles and Practice of Compiler Construction/minidecaf-2019011236"]
+	path = Principles and Practice of Compiler Construction/minidecaf-2019011236
+	url = git@git.tsinghua.edu.cn:compiler-21/minidecaf-2019011236.git
