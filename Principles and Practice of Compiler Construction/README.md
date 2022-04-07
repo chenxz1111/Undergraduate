@@ -6,5 +6,9 @@
 
 #### Experimental Project
 
-> [Minidecaf (A subset of C)](https://decaf-lang.github.io/minidecaf-tutorial/)
+> Minidecaf (A subset of C)
+>
+> > [Guide Book](https://decaf-lang.github.io/minidecaf-tutorial/)
+> >
+> > [Source Code](https://github.com/chenxz1111/Principles-and-Practice-of-Compiler-Construction])
 
