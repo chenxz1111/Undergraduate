@@ -10,5 +10,5 @@
 >
 > > [Guide Book](https://decaf-lang.github.io/minidecaf-tutorial/)
 > >
-> > [Source Code](https://github.com/chenxz1111/Principles-and-Practice-of-Compiler-Construction])
+> > [Source Code](https://github.com/chenxz1111/Principles-and-Practice-of-Compiler-Construction)
 
