@@ -6,7 +6,7 @@
 
 > Project
 
->>Frontend: [source code](https://github.com/chenxz1111/Human-Computer-Interaction-Theory-and-Technology)
+>>Frontend: [source code](https://github.com/chenxz1111/OCTS-frontend)
 >>
 >>Backend: [source code](https://github.com/chenxz1111/Human-Computer-Interaction-Theory-and-Technology)
 
