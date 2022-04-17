@@ -10,4 +10,4 @@
 >
 >>[source code](https://github.com/chenxz1111/Human-Computer-Interaction-Theory-and-Technology)
 
-<video src="../video&picture/ROOMKEEPER.mp4" controls="controls" width="700" height="400">Your browser does not support playing this video！</video>
+https://github.com/chenxz1111/Undergraduate/issues/1
