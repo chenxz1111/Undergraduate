@@ -10,4 +10,4 @@
 >
 >>[source code](https://github.com/chenxz1111/Human-Computer-Interaction-Theory-and-Technology)
 
-https://github.com/chenxz1111/Undergraduate/issues/1
+https://github.com/chenxz1111/Undergraduate/issues/1#issue-1206346547
